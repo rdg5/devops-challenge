@@ -20,12 +20,12 @@ How to:
 - share your repository link with the recruitment team
 
 Here are the challenges:
-- Install and run the app
-- Dockerize it (create dockerfile for each API)
-- Create an infra on AWS (VPC, SG, instances) using IaC
-- Install a small version of kubernetes on the instances (no EKS)
-- Build the manifests to run the 2 APIs on k8s 
-- Bonus points: observability, helm, scaling
+- Install and run the app [ ]
+- Dockerize it (create dockerfile for each API) [ ]
+- Create an infra on AWS (VPC, SG, instances) using IaC [ ]
+- Install a small version of kubernetes on the instances (no EKS) [ ]
+- Build the manifests to run the 2 APIs on k8s  [ ]
+- Bonus points: observability, helm, scaling [ ]
 
 Rules:
 - Use security / container / k8s / cloud best practices
