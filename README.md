@@ -21,7 +21,7 @@ How to:
 
 Here are the challenges:
 - Install and run the app [x]
-- Dockerize it (create dockerfile for each API) [ ]
+- Dockerize it (create dockerfile for each API) [x]
 - Create an infra on AWS (VPC, SG, instances) using IaC [ ]
 - Install a small version of kubernetes on the instances (no EKS) [ ]
 - Build the manifests to run the 2 APIs on k8s  [ ]
