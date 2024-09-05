@@ -40,8 +40,8 @@ jobs:
         file: ./bird/Dockerfile
         push: true
         tags: |
-          myusername/birdapi:latest
-          myusername/birdapi:${{ github.sha }}
+          rdg5/birdapi:latest
+          rdg5/birdapi:${{ github.sha }}
 
   
     - name: Build and push birdImage image
@@ -52,5 +52,5 @@ jobs:
         file: ./birdImage/Dockerfile
         push: true
         tags: |
-          myusername/birdimageapi:latest
-          myusername/birdimageapi:${{ github.sha }}
+          rdg5/birdimageapi:latest
+          rdg5/birdimageapi:${{ github.sha }}
