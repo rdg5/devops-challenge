@@ -41,7 +41,7 @@ func getBirdFactoid() Bird {
 	}
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		fmt.Printf("Error() parsing bird API response: %s\n", err)
+		fmt.Printf("Error parsing bird API response: %s\n", err)
 		return defaultBird(err)
 	}
 	var bird Bird
