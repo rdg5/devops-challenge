@@ -20,7 +20,7 @@ How to:
 - share your repository link with the recruitment team
 
 Here are the challenges:
-- Install and run the app [ ]
+- Install and run the app [x]
 - Dockerize it (create dockerfile for each API) [ ]
 - Create an infra on AWS (VPC, SG, instances) using IaC [ ]
 - Install a small version of kubernetes on the instances (no EKS) [ ]
