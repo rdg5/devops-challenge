@@ -1,0 +1,7 @@
+aws_region         =
+vpc_cidr_block     =
+public_subnet_cidr =
+ssh_key_path       =
+allowed_ssh_cidr   =
+instance_type      =
+ami_id             =
