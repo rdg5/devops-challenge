@@ -1,8 +1,3 @@
-variable "vpc_id" {
-  description = "The ID of the VPC where the security group will be created"
-  type        = string
-}
-
 resource "aws_security_group" "example_sg" {
   vpc_id = var.vpc_id
 

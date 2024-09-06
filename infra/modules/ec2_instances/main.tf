@@ -1,21 +1,6 @@
-variable "subnet_id" {
-  description = "The subnet ID where the EC2 instance will be created"
-  type        = string
-}
-
-variable "security_group_id" {
-  description = "The security group ID to attach to the EC2 instance"
-  type        = string
-}
-
-variable "key_name" {
-  description = "The SSH key name to use for accessing the EC2 instance"
-  type        = string
-}
-
 resource "aws_instance" "bird" {
-  ami           = "ami-09634b5569ee59efb"
-  instance_type = "t3.small"
+  ami           = var.ami_id
+  instance_type = var.instance_type
 
   subnet_id       = var.subnet_id
   security_groups = [var.security_group_id]
