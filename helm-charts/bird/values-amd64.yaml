@@ -1,12 +1,13 @@
 replicaCount: 2
 
 image:
-  repository: rdg5/birdimageapi
+  repository: rdg5/birdapi
   tag: amd64
   pullPolicy: IfNotPresent
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 4200
+  nodePort: 30001
 
 resources: {}
