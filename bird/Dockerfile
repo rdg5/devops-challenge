@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY main.go .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o birdapi -a -ldflags '-extldflags "-static"' .
+RUN GOOS=linux go build -o birdapi -a -ldflags '-extldflags "-static"' .
 
 FROM alpine:3.20
 

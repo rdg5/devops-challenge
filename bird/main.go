@@ -8,6 +8,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/url"
+	"os"
 )
 
 type Bird struct {
@@ -25,7 +26,11 @@ func defaultBird(err error) Bird {
 }
 
 func getBirdImage(birdName string) (string, error) {
-    res, err := http.Get(fmt.Sprintf("http://birdimageapi:4200/?birdName=%s", url.QueryEscape(birdName)))
+	birdImageServiceURL := os.Getenv("BIRDIMAGEAPI_SERVICE_URL")
+    if birdImageServiceURL == "" {
+        birdImageServiceURL = "http://birdimageapi:4200"
+    }
+    res, err := http.Get(fmt.Sprintf("%s/?birdName=%s", birdImageServiceURL, url.QueryEscape(birdName)))
     if err != nil {
         return "", err
     }
