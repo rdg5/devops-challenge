@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: birdapi-deployment
+  labels:
+    app: birdapi
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: birdapi
+  template:
+    metadata:
+      labels:
+        app: birdapi
+    spec:
+      containers:
+      - name: birdapi
+        image: rdg5/birdapi:latest
+        ports:
+        - containerPort: 4201
+
