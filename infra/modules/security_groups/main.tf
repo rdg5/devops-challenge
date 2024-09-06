@@ -10,19 +10,19 @@ resource "aws_security_group" "example_sg" {
   }
 
   ingress {
-    from_port   = 4201
-    to_port     = 4201
+    from_port   = 30001
+    to_port     = 30001
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
     description = "Allow HTTP traffic for birdapi"
   }
 
   ingress {
-    from_port   = 4200
-    to_port     = 4200
+    from_port   = 6443
+    to_port     = 6443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow HTTP traffic for birdimageapi"
+    description = "Allow traffic for kubernetes"
   }
 
   egress {

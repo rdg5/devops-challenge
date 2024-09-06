@@ -14,11 +14,10 @@ resource "aws_instance" "bird" {
               sudo systemctl start docker
               sudo systemctl enable docker
 
-              sudo docker network create bird_network
-
-              sudo docker run -d --name birdapi --network bird_network -p 4201:4201 rdg5/birdapi:latest
-
-              sudo docker run -d --name birdimageapi --network bird_network -p 4200:4200 rdg5/birdimageapi:latest
+							curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
+              curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+							helm repo add stable https://charts.helm.sh/stable
+							helm repo update
               EOF
 
   tags = {

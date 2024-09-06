@@ -7,7 +7,8 @@ RUN go mod download
 
 COPY main.go .
 
-RUN GOOS=linux go build -o birdapi -a -ldflags '-extldflags "-static"' .
+ARG TARGETARCH
+RUN GOOS=linux GOARCH=$TARGETARCH go build -o birdapi -a -ldflags '-extldflags "-static"' .
 
 FROM alpine:3.20
 

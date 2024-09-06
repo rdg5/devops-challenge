@@ -7,7 +7,8 @@ RUN go mod download
 
 COPY main.go .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o birdimageapi -a -ldflags '-extldflags "-static"' .
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -o birdimageapi -a -ldflags '-extldflags "-static"' .
 
 FROM alpine:3.20
 
