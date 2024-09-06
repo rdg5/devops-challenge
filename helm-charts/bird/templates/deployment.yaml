@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-birdapi
+  labels:
+    app: birdapi
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: birdapi
+  template:
+    metadata:
+      labels:
+        app: birdapi
+    spec:
+      containers:
+       - name: birdapi
+         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+         imagePullPolicy: {{ .Values.image.pullPolicy }}
+         ports:
+         - containerPort: {{ .Values.service.port }}
+         env:
+         - name: BIRDIMAGEAPI_SERVICE_URL
+           value: "http://{{ .Release.Name }}-birdimageapi:4200"

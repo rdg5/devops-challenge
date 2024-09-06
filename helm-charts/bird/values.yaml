@@ -1,0 +1,14 @@
+replicaCount: 2
+
+image:
+  repository: rdg5/birdapi
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  port: 4201
+  nodePort: 30001
+
+resources: {}
+

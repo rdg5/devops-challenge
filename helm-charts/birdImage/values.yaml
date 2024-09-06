@@ -1,0 +1,12 @@
+replicaCount: 2
+
+image:
+  repository: rdg5/birdimageapi
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 4200
+
+resources: {}

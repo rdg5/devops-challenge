@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-birdimageapi
+  labels:
+    app: birdimageapi
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: birdimageapi
+  template:
+    metadata:
+      labels:
+        app: birdimageapi
+    spec:
+      containers:
+      - name: birdimageapi
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 4200
