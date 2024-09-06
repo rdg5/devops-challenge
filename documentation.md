@@ -26,3 +26,8 @@ To run simply initialize a new Terraform project using `terraform init` and then
 ### v1.1  
 
 The app can be run through kubernetes. For easier deploy apply the two deployments and the two services from the `kubernetes-manifests/` folder. The birdapi can be reached through the `localhost:30001` nodeport. Please note that the birdimageapi is running in ClusterIP mode, if you want to access the api externally, you need to change the `birdimageapi-service.yaml` type to NodePort.  
+
+### v1.2
+
+The app can be ran using helm charts.  
+For easier deploy apply the two deployments and the two services from the `helm-charts/bird/` and `helm-charts/birdImage/` folders. The birdapi can be reached through the `localhost:30001` nodeport. Please note that the birdimageapi is running in ClusterIP mode, if you want to access the api externally, you need to change the `birdimageapi-service.yaml` type to NodePort.
