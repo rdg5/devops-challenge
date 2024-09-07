@@ -11,4 +11,5 @@ service:
   nodePort: 30001
 
 resources: {}
+birdimageapiReleaseName: "birdimageapi"
 

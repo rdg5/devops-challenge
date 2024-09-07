@@ -22,7 +22,4 @@ USER birdimageapi
 
 EXPOSE 4200
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget --spider --quiet http://localhost:4201/health || exit 1
-
 CMD ["./birdimageapi"]

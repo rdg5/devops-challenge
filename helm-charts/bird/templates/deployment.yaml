@@ -22,4 +22,4 @@ spec:
          - containerPort: {{ .Values.service.port }}
          env:
          - name: BIRDIMAGEAPI_SERVICE_URL
-           value: "http://{{ .Release.Name }}-birdimageapi:4200"
+           value: "http://{{ .Values.birdimageapiReleaseName }}-birdimageapi:4200"
