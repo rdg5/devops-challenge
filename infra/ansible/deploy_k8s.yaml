@@ -26,9 +26,77 @@
     - name: Update Helm repositories
       shell: helm repo update
 
-    - name: Deploy bird API using Helm
+    - name: Clone repository
+      shell: git clone https://github.com/rdg5/devops-challenge.git /home/ubuntu/devops-challenge
+   
+    - name: Deploy birdImage API using Helm
+      environment: 
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
       shell: helm install birdimageapi /home/ubuntu/devops-challenge/helm-charts/birdImage/ -f /home/ubuntu/devops-challenge/helm-charts/birdImage/values-amd64.yaml
 
-    - name: Deploy birdImage API using Helm
+    - name: Deploy bird API using Helm
+      environment:
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
       shell: helm install birdapi /home/ubuntu/devops-challenge/helm-charts/bird/ -f /home/ubuntu/devops-challenge/helm-charts/bird/values-amd64.yaml --set birdImageApiReleaseName=birdimageapi
 
+    - name: Update and upgrade system
+      apt:
+        update_cache: yes
+        upgrade: dist
+        autoremove: yes
+
+    - name: Disable root login via SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+
+    - name: Ensure SSH uses key-based authentication only
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+
+    - name: Restart SSH service to apply changes
+      systemd:
+        name: ssh
+        state: restarted
+
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+
+    - name: Allow SSH, HTTP, and HTTPS traffic
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      with_items:
+        - "22"   
+        - "80"   
+        - "443"
+
+    - name: Allow NodePort 30001 for bird API
+      ufw:
+        rule: allow
+        port: "30001"
+        proto: tcp
+
+    - name: Enable UFW to apply all rules
+      ufw:
+        state: enabled
+
+    - name: Disable unnecessary services (e.g., Avahi, CUPS)
+      systemd:
+        name: "{{ item }}"
+        enabled: false
+        state: stopped
+      with_items:
+        - avahi-daemon
+        - cups
+
+    - name: Install unattended-upgrades
+      apt:
+        name: unattended-upgrades
+        state: present
