@@ -6,25 +6,29 @@ resource "aws_instance" "bird" {
   security_groups = [var.security_group_id]
 	key_name        = var.key_name
   associate_public_ip_address = true
-	user_data = <<-EOF
-              #!/bin/bash
-              sudo apt-get update
-              sudo apt-get install -y docker.io
+  user_data = <<-EOF
+    #cloud-config
+    package_update: true
+    packages:
+      - ansible
 
-              sudo systemctl start docker
-              sudo systemctl enable docker
+    runcmd:
+      - echo "Cloud-init script has run successfully!" > /tmp/trial.txt
+      - ansible-playbook /tmp/run_playbook.yml
+  EOF
 
-							curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
-              curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-							helm repo add stable https://charts.helm.sh/stable
-							helm repo update
-              EOF
-
-  tags = {
-    Name = "bird-instance"
+  provisioner "file" {
+    source      = "/Users/box/src/own/lifi-assignment/devops-challenge/infra/ansible/deploy_k8s.yaml"
+    destination = "/tmp/run_playbook.yml"
   }
-}
 
+  connection {
+    type        = "ssh"
+    host        = self.public_ip
+    user        = "ubuntu"
+    private_key = file("/Users/box/.ssh/my-ec2-key")
+  } 
+}
 output "public_instance_ip" {
   value = aws_instance.bird.public_ip
 }

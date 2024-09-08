@@ -1,4 +1,4 @@
-resource "aws_security_group" "example_sg" {
+resource "aws_security_group" "bird_sg" {
   vpc_id = var.vpc_id
 
   ingress {
@@ -17,14 +17,6 @@ resource "aws_security_group" "example_sg" {
     description = "Allow HTTP traffic for birdapi"
   }
 
-  ingress {
-    from_port   = 6443
-    to_port     = 6443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow traffic for kubernetes"
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -34,7 +26,7 @@ resource "aws_security_group" "example_sg" {
   }
 
   tags = {
-    Name = "example_sg"
+    Name = "bird_sg"
   }
 }
 

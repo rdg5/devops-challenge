@@ -26,3 +26,8 @@ variable "instance_type" {
 variable "ami_id" {
   description = "AMI ID for the EC2 instance"
 }
+
+variable "github_repo" {
+  description = "Github repo to clone"
+	type        = string
+}

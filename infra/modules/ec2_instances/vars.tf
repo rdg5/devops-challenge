@@ -22,3 +22,9 @@ variable "ami_id" {
   description = "AMI ID for the EC2 instance"
   default     = "ami-09634b5569ee59efb"
 }
+
+variable "github_repo" {
+  description = "Github repo to clone"
+	type        = string
+	default     = "https://github.com/rdg5/devops-challenge.git"
+}
