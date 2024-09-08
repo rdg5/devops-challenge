@@ -31,3 +31,8 @@ The app can be run through kubernetes. For easier deploy apply the two deploymen
 
 The app can be run using helm charts.  
 For easier deploy apply the two deployments and the two services from the `helm-charts/bird/` and `helm-charts/birdImage/` folders. The birdapi can be reached through the `localhost:30001` nodeport. Please note that the birdimageapi is running in ClusterIP mode, if you want to access the api externally, you need to change the `birdimageapi-service.yaml` type to NodePort.
+
+
+### v1.3
+
+The app deployment is completely automated, by using Terraform we can deploy the api's on an ec2 instance using helm. TODO!!!
