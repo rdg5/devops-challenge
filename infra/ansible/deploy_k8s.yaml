@@ -14,11 +14,6 @@
         enabled: yes
         state: started
 
-    - name: Install Python requests
-      apt:
-        name: python3-requests
-        state: present
-
     - name: Install k3s
       shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
 
@@ -31,60 +26,120 @@
         helm repo add grafana https://grafana.github.io/helm-charts
         helm repo update
 
-    - name: Install Prometheus Operator with Helm
-      environment: 
-        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-      shell: helm install prometheus-operator prometheus-community/kube-prometheus-stack --wait
-
-    - name: Install Grafana with Helm (NodePort 30002)
-      environment: 
-        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-      shell: helm install grafana grafana/grafana --set adminPassword='your-admin-password' --set service.type=NodePort --set service.nodePort=30002 --wait
+    - name: Check if repository is already cloned
+      stat:
+        path: /home/ubuntu/devops-challenge
+      register: repo_cloned
 
     - name: Clone repository
-      shell: git clone https://github.com/rdg5/devops-challenge.git /home/ubuntu/devops-challenge
+      git:
+        repo: https://github.com/rdg5/devops-challenge.git
+        dest: /home/ubuntu/devops-challenge
+      when: not repo_cloned.stat.exists
+
+    - name: Ensure /etc/grafana/provisioning/datasources directory exists
+      file:
+        path: /etc/grafana/provisioning/datasources
+        state: directory
+        mode: '0755'
+
+    - name: Ensure /etc/grafana/provisioning/dashboards directory exists
+      file:
+        path: /etc/grafana/provisioning/dashboards
+        state: directory
+        mode: '0755'
+
+    - name: Ensure /var/lib/grafana/dashboards directory exists
+      file:
+        path: /var/lib/grafana/dashboards
+        state: directory
+        mode: '0755'
+
+    - name: Check if Grafana datasource file exists
+      stat:
+        path: /etc/grafana/provisioning/datasources/datasource.yml
+      register: datasource_file
 
     - name: Copy Grafana datasource provisioning file
       copy:
-        src: /home/ubuntu/devops-challenge/grafana/provisioning/datasources/datasource.yml
+        src: /home/ubuntu/devops-challenge/infra/ansible/grafana/provisioning/datasources/datasource.yml
         dest: /etc/grafana/provisioning/datasources/datasource.yml
-        owner: grafana
-        group: grafana
+        mode: '0644'
+      when: not datasource_file.stat.exists
+
+    - name: Check if Grafana dashboard provisioning file exists
+      stat:
+        path: /etc/grafana/provisioning/dashboards/dashboard.yml
+      register: dashboard_provisioning_file
 
     - name: Copy Grafana dashboard provisioning file
       copy:
-        src: /home/ubuntu/devops-challenge/grafana/provisioning/dashboards/dashboard.yml
+        src: /home/ubuntu/devops-challenge/infra/ansible/grafana/provisioning/dashboards/dashboard.yml
         dest: /etc/grafana/provisioning/dashboards/dashboard.yml
-        owner: grafana
-        group: grafana
+        mode: '0644'
+      when: not dashboard_provisioning_file.stat.exists
+
+    - name: Check if Grafana dashboard JSON file exists
+      stat:
+        path: /var/lib/grafana/dashboards/birdapi-dashboard.json
+      register: dashboard_json_file
 
     - name: Copy Grafana dashboard JSON file
       copy:
-        src: /home/ubuntu/devops-challenge/grafana/dashboards/birdapi-dashboard.json
+        src: /home/ubuntu/devops-challenge/infra/ansible/grafana/provisioning/dashboards/birdapi-dashboard.json
         dest: /var/lib/grafana/dashboards/birdapi-dashboard.json
-        owner: grafana
-        group: grafana
+        mode: '0644'
+      when: not dashboard_json_file.stat.exists
 
-    - name: Restart Grafana
-      systemd:
-        name: grafana-server
-        state: restarted
-   
-    - name: Deploy birdImage API using Helm
-      environment: 
-        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-      shell: helm install birdimageapi /home/ubuntu/devops-challenge/helm-charts/birdImage/ -f /home/ubuntu/devops-challenge/helm-charts/birdImage/values-amd64.yaml
-
-    - name: Deploy bird API using Helm
+    - name: Install Prometheus Operator with Helm (via NodePort)
+      shell: |
+        helm upgrade --install prometheus-operator prometheus-community/kube-prometheus-stack \
+        --set prometheus.service.type=NodePort \
+        --set prometheus.service.nodePort=30003 \
+        --wait
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-      shell: helm install birdapi /home/ubuntu/devops-challenge/helm-charts/bird/ -f /home/ubuntu/devops-challenge/helm-charts/bird/values-amd64.yaml --set birdImageApiReleaseName=birdimageapi
 
-    - name: Update and upgrade system
-      apt:
-        update_cache: yes
-        upgrade: dist
-        autoremove: yes
+    - name: Install Grafana with Helm (NodePort 30002 and provisioned dashboards)
+      shell: |
+        helm upgrade --install grafana grafana/grafana \
+        --set adminPassword='your-admin-password' \
+        --set service.type=NodePort \
+        --set service.nodePort=30002 \
+        --set extraVolumes[0].name=grafana-provisioning \
+        --set extraVolumes[0].hostPath.path=/etc/grafana/provisioning \
+        --set extraVolumes[0].hostPath.type=Directory \
+        --set extraVolumes[1].name=grafana-dashboard-vol \
+        --set extraVolumes[1].hostPath.path=/var/lib/grafana/dashboards \
+        --set extraVolumes[1].hostPath.type=Directory \
+        --set extraVolumeMounts[0].name=grafana-provisioning \
+        --set extraVolumeMounts[0].mountPath=/etc/grafana/provisioning \
+        --set extraVolumeMounts[1].name=grafana-dashboard-vol \
+        --set extraVolumeMounts[1].mountPath=/var/lib/grafana/dashboards \
+        --wait
+      environment:
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+
+    - name: Wait for Grafana pod to be ready
+      shell: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana  --timeout=120s
+      changed_when: false
+
+    - name: Deploy birdImage API using Helm
+      shell: |
+        helm upgrade --install birdimageapi /home/ubuntu/devops-challenge/helm-charts/birdImage/ \
+        -f /home/ubuntu/devops-challenge/helm-charts/birdImage/values-amd64.yaml \
+        --namespace default
+      environment:
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+
+    - name: Deploy bird API using Helm
+      shell: |
+        helm upgrade --install birdapi /home/ubuntu/devops-challenge/helm-charts/bird/ \
+        -f /home/ubuntu/devops-challenge/helm-charts/bird/values-amd64.yaml \
+        --namespace default \
+        --set birdImageApiReleaseName=birdimageapi
+      environment:
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
 
     - name: Disable root login via SSH
       lineinfile:
@@ -103,20 +158,11 @@
         name: ssh
         state: restarted
 
-    - name: Install UFW
-      apt:
-        name: ufw
-        state: present
-
-    - name: Allow SSH, HTTP, and HTTPS traffic
+    - name: Allow SSH traffic
       ufw:
         rule: allow
-        port: "{{ item }}"
+        port: "22"
         proto: tcp
-      with_items:
-        - "22"   
-        - "80"   
-        - "443"
 
     - name: Allow NodePort 30001 for bird API
       ufw:
@@ -124,12 +170,17 @@
         port: "30001"
         proto: tcp
 
- .  - name: Allow NodePort 30002 for Grafana
+    - name: Allow NodePort 30002 for Grafana
       ufw:
         rule: allow
         port: "30002"
         proto: tcp
-
+    
+    - name: Allow NodePort 30003 for Prometheus
+      ufw:
+        rule: allow
+        port: "30003"
+        proto: tcp
 
     - name: Enable UFW to apply all rules
       ufw:

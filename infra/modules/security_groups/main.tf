@@ -25,6 +25,14 @@ resource "aws_security_group" "bird_sg" {
     description = "Allow HTTP traffic for grafana"
   }
 
+	ingress {
+    from_port   = 30003
+    to_port     = 30003
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTP traffic for prometheus"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
