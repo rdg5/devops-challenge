@@ -14,20 +14,61 @@
         enabled: yes
         state: started
 
+    - name: Install Python requests
+      apt:
+        name: python3-requests
+        state: present
+
     - name: Install k3s
       shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
 
     - name: Install Helm
       shell: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-    - name: Add stable Helm repo
-      shell: helm repo add stable https://charts.helm.sh/stable
+    - name: Add Helm repos for Prometheus and Grafana
+      shell: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo update
 
-    - name: Update Helm repositories
-      shell: helm repo update
+    - name: Install Prometheus Operator with Helm
+      environment: 
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+      shell: helm install prometheus-operator prometheus-community/kube-prometheus-stack --wait
+
+    - name: Install Grafana with Helm (NodePort 30002)
+      environment: 
+        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+      shell: helm install grafana grafana/grafana --set adminPassword='your-admin-password' --set service.type=NodePort --set service.nodePort=30002 --wait
 
     - name: Clone repository
       shell: git clone https://github.com/rdg5/devops-challenge.git /home/ubuntu/devops-challenge
+
+    - name: Copy Grafana datasource provisioning file
+      copy:
+        src: /home/ubuntu/devops-challenge/grafana/provisioning/datasources/datasource.yml
+        dest: /etc/grafana/provisioning/datasources/datasource.yml
+        owner: grafana
+        group: grafana
+
+    - name: Copy Grafana dashboard provisioning file
+      copy:
+        src: /home/ubuntu/devops-challenge/grafana/provisioning/dashboards/dashboard.yml
+        dest: /etc/grafana/provisioning/dashboards/dashboard.yml
+        owner: grafana
+        group: grafana
+
+    - name: Copy Grafana dashboard JSON file
+      copy:
+        src: /home/ubuntu/devops-challenge/grafana/dashboards/birdapi-dashboard.json
+        dest: /var/lib/grafana/dashboards/birdapi-dashboard.json
+        owner: grafana
+        group: grafana
+
+    - name: Restart Grafana
+      systemd:
+        name: grafana-server
+        state: restarted
    
     - name: Deploy birdImage API using Helm
       environment: 
@@ -83,18 +124,16 @@
         port: "30001"
         proto: tcp
 
+ .  - name: Allow NodePort 30002 for Grafana
+      ufw:
+        rule: allow
+        port: "30002"
+        proto: tcp
+
+
     - name: Enable UFW to apply all rules
       ufw:
         state: enabled
-
-    - name: Disable unnecessary services (e.g., Avahi, CUPS)
-      systemd:
-        name: "{{ item }}"
-        enabled: false
-        state: stopped
-      with_items:
-        - avahi-daemon
-        - cups
 
     - name: Install unattended-upgrades
       apt:
