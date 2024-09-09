@@ -7,7 +7,23 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var httpRequestsTotalBirdimageapi = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "http_requests_total_birdimageapi",
+		Help: "Total number of HTTP requests to birdimageapi",
+	},
+	[]string{"method", "endpoint"},
+)
+
+func init() {
+	prometheus.MustRegister(httpRequestsTotalBirdimageapi)
+}
+
 
 type Urls struct {
     Thumb string
@@ -54,6 +70,7 @@ func getBirdImage(birdName string) string {
 }
 
 func bird(w http.ResponseWriter, r *http.Request) {
+	httpRequestsTotalBirdimageapi.With(prometheus.Labels{"method": r.Method, "endpoint": r.URL.Path}).Inc()
 	var buffer bytes.Buffer
     birdName := r.URL.Query().Get("birdName")
     if birdName == "" {
@@ -65,7 +82,20 @@ func bird(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", bird)
-	http.ListenAndServe(":4200", nil)
-}
+	http.Handle("/metrics", promhttp.Handler())
+	fmt.Println("Metrics endpoint registered at /metrics")
 
+	http.HandleFunc("/birdimage", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("Request received on path: %s\n", r.URL.Path)
+		if r.URL.Path != "/birdimage" {
+			http.NotFound(w, r)
+			return
+		}
+		bird(w, r)
+	})
+
+	fmt.Println("Starting server on port 4200")
+	if err := http.ListenAndServe(":4200", nil); err != nil {
+		fmt.Printf("Error starting server: %s\n", err)
+	}
+}
