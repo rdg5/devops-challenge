@@ -28,6 +28,9 @@ resource "aws_instance" "bird" {
     user        = "ubuntu"
     private_key = file("/Users/box/.ssh/my-ec2-key")
   } 
+	tags = {
+		Name = "bird"
+	}
 }
 output "public_instance_ip" {
   value = aws_instance.bird.public_ip

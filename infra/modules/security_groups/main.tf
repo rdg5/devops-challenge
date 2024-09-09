@@ -17,6 +17,14 @@ resource "aws_security_group" "bird_sg" {
     description = "Allow HTTP traffic for birdapi"
   }
 
+	ingress {
+    from_port   = 30002
+    to_port     = 30002
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTP traffic for grafana"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
