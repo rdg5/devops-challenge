@@ -3,7 +3,7 @@ replicaCount: 2
 image:
   repository: rdg5/birdapi
   tag: arm64
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   type: NodePort
