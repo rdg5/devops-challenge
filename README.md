@@ -22,10 +22,10 @@ How to:
 Here are the challenges:
 - Install and run the app [x]
 - Dockerize it (create dockerfile for each API) [x]
-- Create an infra on AWS (VPC, SG, instances) using IaC [ ]
-- Install a small version of kubernetes on the instances (no EKS) [ ]
-- Build the manifests to run the 2 APIs on k8s  [ ]
-- Bonus points: observability, helm, scaling [ ]
+- Create an infra on AWS (VPC, SG, instances) using IaC [x]
+- Install a small version of kubernetes on the instances (no EKS) [x]
+- Build the manifests to run the 2 APIs on k8s  [x]
+- Bonus points: observability, helm, scaling [x]
 
 Rules:
 - Use security / container / k8s / cloud best practices
