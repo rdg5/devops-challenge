@@ -41,9 +41,14 @@
 
 ## Project Overview
 
-This project automates the deployment and management of BirdApp, utilizing DevOps best practices. It deploys the application and all the necessary tools to the cloud, leveraging tools like Terraform and Kubernetes.
+This project automates the deployment and management of BirdApp, utilizing DevOps best practices. It deploys the application and all the necessary tools to the cloud, leveraging tools like Terraform and Kubernetes. 
 
-What is BirdApp you might ask? It gives us Birds and it's great! If you want to understand how the app works, consult the following diagram:
+Terraform provisions AWS infrastructure, creating an EC2 instance and necessary network components. Ansible is responsible for installing and configuring dependencies on the EC2 instance, including Docker, k3s, and Helm. Kubernetes (k3s) is used for container orchestration, while Helm charts are employed to deploy the BirdApp, Prometheus, and Grafana.
+
+What is BirdApp you might ask? BirdApp consists of two APIs that provide information about various bird species. This project demonstrates infrastructure provisioning, CI pipeline automation, and monitoring tools in a DevOps environment.
+**Plus, it gives us Birds—and that's awesome!**
+
+If you want to understand how the app works, consult the following diagram:
 
 <img src="./assets/birdapp.svg" alt="BirdApp" style="zoom:30%;" />
 
@@ -55,7 +60,7 @@ What is BirdApp you might ask? It gives us Birds and it's great! If you want to 
 - **Configuration Management**: Managed with Ansible.
 - **Continuous Integration (CI)**: Built using Github Actions.
 - **Cloud Provider**: Running on AWS.
-- **Monitoring & Logging**: Implemented using Prometheus and Grafana.
+- **Monitoring**: Implemented using Prometheus and Grafana.
 
 ## Features
 
@@ -82,17 +87,15 @@ cd devops-challenge
 
 ### 2. SSH key
 
-```
-The easiest way is to run the command:
-
-$ ssh-keygen
-```
-
-Make sure to remember which directory you placed the key to, because you will need to pass the path to the environment variables, see the next step.
+After generating the SSH key using `ssh-keygen`, ensure that the key is either added to your AWS key pairs or stored securely. You will need to provide the path to this key in the `terraform.tfvars` file under the `ssh_key_path` variable in the next step.
 
 ### 3. Infrastructure setup
 
-Ensure your cloud provider credentials are configured (e.g., `~/.aws/credentials` for AWS) and your environment variables are stored under `repo/infra/terraform.tfvars`. For reference check the `infra/example.terraform` file on what variables you are expected to provide:
+Ensure your cloud provider credentials are configured (e.g., `~/.aws/credentials` for AWS) and your environment variables are stored under `repo/infra/terraform.tfvars`. Please make sure that your AWS credentials and sensitive information (such as SSH keys) are stored securely using environment variables, or secret management tools such as AWS Secrets Manager. Never hard-code sensitive data in the repository.
+
+Ensure that your AWS CLI is configured with the correct credentials by running `aws configure` and setting the appropriate access keys. The AWS CLI will store this information in `~/.aws/credentials`.
+
+For reference check the `infra/example.terraform` file on what variables you are expected to provide:
 
 ```
 aws_region         =
@@ -113,6 +116,8 @@ terraform init
 # Apply the Terraform configuration
 terraform apply
 ```
+
+Running `terraform apply` will provision an EC2 instance with a security group, a VPC, and a subnet as defined in the `terraform.tfvars` file. Terraform will also output the public IP address of the EC2 instance once provisioning is complete.
 
 ### 4.  Outputs
 
@@ -167,7 +172,7 @@ process_open_fds 10
 process_resident_memory_bytes 1.4819328e+07
 ```
 
-# Monitoring and Logging
+# Monitoring
 
 ## Overview
 
@@ -206,6 +211,8 @@ If you want to query the API metrics directly, you can do it under the `Graph` i
 
 <img src="./assets/prometheus.png" alt="Prometheus services" style="zoom:40%;" />
 
+Alerts can be set up using Prometheus Alertmanager to notify you when certain conditions (e.g., high CPU usage, memory exhaustion) are met. It is recommended to monitor both infrastructure metrics (CPU, memory, disk) as well as application-specific metrics (HTTP response times, request rates).
+
 # EC2 - Instance
 
 ## Overview
@@ -225,7 +232,10 @@ With the help of Ansible the following steps will happen after the instance is c
 7. Installing Grafana
 8. Deploy BirdAPI
 9. Deploy BirdImageAPI
-10. Reinforcing the instance
+10. Reinforcing the instance:
+    1. Disabling root login over SSH, 
+    2. Setting up a firewall to limit open ports
+    3.  Enabling automatic security updates.
 
 Everything is deployed with helm on the default k3s namespace. 
 
@@ -261,9 +271,9 @@ For easier deploy apply the two deployments and the two services from the `helm-
 
 The app deployment is completely automated, by using Terraform we can deploy the api's on an ec2 instance. You can access the birdAPI on the publicIP:30001NodePort. 
 
-### v1.4 (current one)
+### v1.4 (
 
-The automated app deployment includes now includes Prometheus & Grafana with auto configured data source and a dashboard to monitor the http requests for both api's.
+The automated app deployment now includes Prometheus & Grafana with auto configured data source and a dashboard to monitor the http requests for both api's.
 
 # Contact
 
