@@ -277,4 +277,4 @@ The automated app deployment now includes Prometheus & Grafana with auto configu
 
 # Contact
 
-You can reach me on [linkedin](www.linkedin.com/in/sandorvass)! Thanks for checking out the project, you are awesome! 
+You can reach me on [linkedin](https://linkedin.com/in/sandorvass)! Thanks for checking out the project, you are awesome! 
