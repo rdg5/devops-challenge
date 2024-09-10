@@ -36,3 +36,10 @@ For easier deploy apply the two deployments and the two services from the `helm-
 ### v1.3
 
 The app deployment is completely automated, by using Terraform we can deploy the api's on an ec2 instance using helm. TODO!!!
+
+
+### v.1.4
+
+The app automated app deployment includes Prometheus & Grafana with auto configured data source and a dashboard to monitor the http requests for both api's. The infrastructure is one ec2 computer.
+
+
