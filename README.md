@@ -1,7 +1,37 @@
-# DevOps Project: [BirdApi]
+# DevOps Project: BirdApi
 [![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://example.com/version)
 
-[TOC]
+
+
+  * [Project Overview](#project-overview)
+  * [Architecture](#architecture)
+  * [Features](#features)
+  * [Prerequisites](#prerequisites)
+  * [Installation](#installation)
+    + [1. Clone the Repository](#1-clone-the-repository)
+    + [2. SSH key](#2-ssh-key)
+    + [3. Infrastructure setup](#3-infrastructure-setup)
+    + [4.  Outputs](#4--outputs)
+- [Usage](#usage)
+    + [BirdAPI](#birdapi)
+    + [BirdAPI metrics](#birdapi-metrics)
+- [Monitoring and Logging](#monitoring-and-logging)
+  * [Overview](#overview)
+  * [Grafana](#grafana)
+    + [Usage](#usage-1)
+  * [Prometheus](#prometheus)
+    + [Usage](#usage-2)
+- [EC2 - Instance](#ec2---instance)
+  * [Overview](#overview-1)
+  * [What gets installed on the server](#what-gets-installed-on-the-server)
+- [Versions](#versions)
+    + [v 1.0](#v-10)
+    + [v1.2](#v12)
+    + [v1.3](#v13)
+    + [v1.4 (current one)](#v14--current-one-)
+- [Contact](#contact)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
 
 
@@ -15,11 +45,11 @@ This project automates the deployment and management of BirdApp, utilizing DevOp
 
 What is BirdApp you might ask? It gives us Birds and it's great! If you want to understand how the app works, consult the following diagram:
 
-<img src="/Users/box/src/own/lifi-assignment/devops-challenge/assets/birdapp.svg" alt="BirdApp" style="zoom:30%;" />
+<img src="./assets/birdapp.svg" alt="BirdApp" style="zoom:30%;" />
 
 ## Architecture
 
-<img src="/Users/box/src/own/lifi-assignment/devops-challenge/assets/terraform.png" alt="Infrastructure diagram" style="zoom:30%;" />
+<img src="./assets/terraform.png" alt="Infrastructure diagram" style="zoom:30%;" />
 
 - **Infrastructure as Code (IaC)**: Provisioned using Terraform.
 - **Configuration Management**: Managed with Ansible.
@@ -147,7 +177,7 @@ If you are interested in the API metrics, the project comes with Prometheus and 
 
 There is a precreated Dashboard that showcases the total number of HTTP requests received by the two API's. e.g.
 
-<img src="/Users/box/src/own/lifi-assignment/devops-challenge/assets/dashboard.png" alt="Grafana login" style="zoom:30%;" />
+<img src="./assets/dashboard.png" alt="Grafana login" style="zoom:30%;" />
 
 ### Usage
 
@@ -155,7 +185,7 @@ In order to access Grafana visit NodePort 30002. ( e.g. `34.254.158.66:30002/`).
 
 You will be presented with the following login form
 
-<img src="/Users/box/src/own/lifi-assignment/devops-challenge/assets/grafana.png" alt="Grafana login" style="zoom:40%;" />
+<img src="./assets/grafana.png" alt="Grafana login" style="zoom:40%;" />
 
 You can use the precreated admin account, the credentials for it are:
 
@@ -174,7 +204,7 @@ In order to access Prometheus visit NodePort 30003. ( e.g. `34.254.158.66:30003/
 
 If you want to query the API metrics directly, you can do it under the `Graph` if you are interested in the services, Prometheus monitors the API's as well as the Kubernetes cluster.
 
-<img src="/Users/box/src/own/lifi-assignment/devops-challenge/assets/prometheus.png" alt="Prometheus services" style="zoom:40%;" />
+<img src="./assets/prometheus.png" alt="Prometheus services" style="zoom:40%;" />
 
 # EC2 - Instance
 
@@ -201,11 +231,11 @@ Everything is deployed with helm on the default k3s namespace.
 
 At the end of the installation process the following pods will be running:
 
-<img src="/Users/box/src/own/lifi-assignment/devops-challenge/assets/kubectl-get-pods.png" alt="Kubectl get pods" style="zoom:40%;" />
+<img src="./assets/kubectl-get-pods.png" alt="Kubectl get pods" style="zoom:40%;" />
 
 You can also see the deployments using Helm:
 
-<img src="/Users/box/src/own/lifi-assignment/devops-challenge/assets/helm.png" alt="Helm list" style="zoom:30%;" />
+<img src="./assets/helm.png" alt="Helm list" style="zoom:30%;" />
 
 # Versions
 
