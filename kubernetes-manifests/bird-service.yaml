@@ -10,4 +10,3 @@ spec:
     - port: 4201
       targetPort: 4201
       nodePort: 30001
-

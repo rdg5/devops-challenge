@@ -4,6 +4,10 @@ metadata:
   name: birdimageapi-deployment
   labels:
     app: birdimageapi
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "4200"
 spec:
   replicas: 2
   selector:
@@ -14,9 +18,46 @@ spec:
       labels:
         app: birdimageapi
     spec:
+      securityContext:
+        fsGroup: 2000
       containers:
       - name: birdimageapi
-        image: rdg5/birdimageapi:latest
+        image: rdg5/birdimageapi:arm64
         ports:
         - containerPort: 4200
-
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 4200
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 4200
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 3000
+      restartPolicy: Always
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: birdimageapi-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: birdimageapi-deployment
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 50
