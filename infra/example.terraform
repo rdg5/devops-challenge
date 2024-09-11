@@ -1,4 +1,4 @@
-# This is an example of the variables you can havt to pass to terraform
+# This is an example of the variables you can pass to terraform
 # Please change the values to match your setup
 
 aws_region         = "eu-west-1"
