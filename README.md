@@ -145,7 +145,7 @@ After the installation is complete you can access the BirdAPI on NodePort 30001.
 
 ### BirdAPI metrics
 
-If you are interested in the metrics regarding the API you can access them on the `/metrics` endpoint. (e.g. `34.254.158.66:30001/metrics)
+If you are interested in the metrics regarding the API you can access them on the `/metrics` endpoint. (e.g. `34.254.158.66:30001/metrics`)
 
 Sending a GET request will respond with the metrics used by Prometheus e.g.:
 
