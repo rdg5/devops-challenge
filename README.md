@@ -221,6 +221,8 @@ Terraform creates one `t3.medium` instance running `Ubuntu 20.04` in the `eu-wes
 
 ## What gets installed on the server
 
+![Ansible playbook gif](./assets/ansible.gif)
+
 With the help of Ansible the following steps will happen after the instance is created: 
 
 1. Installing Docker
@@ -271,7 +273,7 @@ For easier deploy apply the two deployments and the two services from the `helm-
 
 The app deployment is completely automated, by using Terraform we can deploy the api's on an ec2 instance. You can access the birdAPI on the publicIP:30001NodePort. 
 
-### v1.4 
+### v1.4 (
 
 The automated app deployment now includes Prometheus & Grafana with auto configured data source and a dashboard to monitor the http requests for both api's.
 
