@@ -1,7 +1,11 @@
-aws_region         =
-vpc_cidr_block     =
-public_subnet_cidr =
-ssh_key_path       =
-allowed_ssh_cidr   =
-instance_type      =
-ami_id             =
+# This is an example of the variables you can havt to pass to terraform
+# Please change the values to match your setup
+
+aws_region         = "eu-west-1"
+vpc_cidr_block     = "10.0.0.0/16"
+public_subnet_cidr = "10.0.1.0/24"
+ssh_key_path       = "~/.ssh/id_rsa.pub"
+allowed_ssh_cidr   = "0.0.0.0/0"
+instance_type      = "t3.micro"
+ami_id             = "ami-09634b5569ee59efb"
+github_repo        = "https://github.com/user/repo"
