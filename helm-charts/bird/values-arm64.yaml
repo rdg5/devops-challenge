@@ -13,3 +13,8 @@ service:
 resources: {}
 birdimageapiReleaseName: "birdimageapi"
 
+autoscaling:
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 50
+
