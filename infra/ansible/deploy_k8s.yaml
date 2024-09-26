@@ -29,8 +29,8 @@
         state: started
 
     # Use ec2_instance_facts to retrieve instance metadata, including tags
-    - name: Get EC2 instance facts
-      ec2_instance_facts:
+    - name: Get EC2 instance info
+      ec2_instance_info:
         region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
       register: instance_info
 
