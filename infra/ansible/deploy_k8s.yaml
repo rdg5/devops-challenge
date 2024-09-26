@@ -68,27 +68,6 @@
       shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644 --disable-agent
       when: node_role == "master"
 
-    # Fetch K3s kubeconfig from the master node using SSH
-    - name: Fetch K3s kubeconfig from master
-      fetch:
-        src: /etc/rancher/k3s/k3s.yaml
-        dest: /tmp/k3s.yaml
-        flat: yes
-      delegate_to: "{{ k3s_master_ip }}"
-      vars:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -i {{ ssh_private_key }}'
-      when: node_role == "master"
-
-    # Copy the kubeconfig from the master to worker nodes (with remote_src)
-    - name: Copy K3s kubeconfig to worker nodes
-      copy:
-        src: /tmp/k3s.yaml
-        dest: /etc/rancher/k3s/k3s.yaml
-        owner: ubuntu
-        mode: '0644'
-        remote_src: yes  # Ensure this is a remote file
-      when: node_role == "worker"
-
     # Wait for K3s master to be ready on worker nodes
     - name: Wait for K3s master to be ready
       wait_for:
@@ -96,6 +75,16 @@
         port: 6443
         state: started
         timeout: 300
+      when: node_role == "worker"
+
+    - name: Copy K3s kubeconfig to worker nodes
+      copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /etc/rancher/k3s/k3s.yaml
+        owner: ubuntu
+        mode: '0644'
+        remote_src: yes
+      delegate_to: "{{ k3s_master_ip }}"
       when: node_role == "worker"
 
     # Install k3s on Worker node, pointing to the master
