@@ -1,6 +1,18 @@
 ---
 - hosts: localhost
   become: yes
+  pre_tasks:
+    - name: Install pip3 if not installed
+      apt:
+        name: python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Ensure boto3 is installed
+      pip:
+        name: boto3
+        state: present
+        executable: pip3
   tasks:
     - name: Install Docker
       apt:
