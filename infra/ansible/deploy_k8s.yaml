@@ -13,6 +13,7 @@
         name: boto3
         state: present
         executable: pip3
+  aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') | default('eu-west-1') }}"  # Set region, with fallback
   tasks:
     - name: Install Docker
       apt:
