@@ -14,51 +14,92 @@
         enabled: yes
         state: started
 
-    - name: Install k3s
-      shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
+    - name: Get instance tag (node_role)
+      ec2_metadata_facts:
+    - set_fact:
+        node_role: "{{ ansible_ec2_tag_Role }}"
+    
+    # Install k3s on Master
+    - name: Install k3s on Master
+      shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644 --disable-agent
+      when: node_role == "master"
 
-    - name: Install Helm
+    # Install k3s on Worker and wait for master to be ready
+    - name: Wait for K3s master to be ready
+      wait_for:
+        host: "{{ aws_ssm_parameter.k3s_master_ip.value }}"
+        port: 6443
+        state: started
+        timeout: 300
+      when: node_role == "worker"
+
+    - name: Install k3s on Worker
+      shell: |
+        MASTER_IP=$(aws ssm get-parameter --name 'k3s-master-ip' --query 'Parameter.Value' --output text)
+        NODE_TOKEN=$(aws ssm get-parameter --name 'k3s-node-token' --query 'Parameter.Value' --output text)
+        curl -sfL https://get.k3s.io | K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$NODE_TOKEN sh -
+      when: node_role == "worker"
+
+    # Install Helm on worker nodes
+    - name: Install Helm (with retries)
       shell: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      retries: 5
+      delay: 30
+      register: helm_install_result
+      until: helm_install_result.rc == 0
+      when: node_role == "worker"
+
+    - name: Log Helm installation result
+      debug:
+        msg: "Helm installation completed successfully on worker node {{ inventory_hostname }}"
 
     - name: Add Helm repos for Prometheus and Grafana
       shell: |
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         helm repo add grafana https://grafana.github.io/helm-charts
         helm repo update
+      when: node_role == "worker" and inventory_hostname == groups['worker'][0]  # Only first worker handles this
 
     - name: Check if repository is already cloned
       stat:
         path: /home/ubuntu/devops-challenge
       register: repo_cloned
+      when: node_role == "worker"
 
     - name: Clone repository
       git:
         repo: https://github.com/rdg5/devops-challenge.git
         dest: /home/ubuntu/devops-challenge
       when: not repo_cloned.stat.exists
+      when: node_role == "worker"
 
+    # Grafana provisioning and configuration on the worker nodes
     - name: Ensure /etc/grafana/provisioning/datasources directory exists
       file:
         path: /etc/grafana/provisioning/datasources
         state: directory
         mode: '0755'
+      when: node_role == "worker"
 
     - name: Ensure /etc/grafana/provisioning/dashboards directory exists
       file:
         path: /etc/grafana/provisioning/dashboards
         state: directory
         mode: '0755'
+      when: node_role == "worker"
 
     - name: Ensure /var/lib/grafana/dashboards directory exists
       file:
         path: /var/lib/grafana/dashboards
         state: directory
         mode: '0755'
+      when: node_role == "worker"
 
     - name: Check if Grafana datasource file exists
       stat:
         path: /etc/grafana/provisioning/datasources/datasource.yml
       register: datasource_file
+      when: node_role == "worker"
 
     - name: Copy Grafana datasource provisioning file
       copy:
@@ -66,11 +107,13 @@
         dest: /etc/grafana/provisioning/datasources/datasource.yml
         mode: '0644'
       when: not datasource_file.stat.exists
+      when: node_role == "worker"
 
     - name: Check if Grafana dashboard provisioning file exists
       stat:
         path: /etc/grafana/provisioning/dashboards/dashboard.yml
       register: dashboard_provisioning_file
+      when: node_role == "worker"
 
     - name: Copy Grafana dashboard provisioning file
       copy:
@@ -78,11 +121,13 @@
         dest: /etc/grafana/provisioning/dashboards/dashboard.yml
         mode: '0644'
       when: not dashboard_provisioning_file.stat.exists
+      when: node_role == "worker"
 
     - name: Check if Grafana dashboard JSON file exists
       stat:
         path: /var/lib/grafana/dashboards/birdapi-dashboard.json
       register: dashboard_json_file
+      when: node_role == "worker"
 
     - name: Copy Grafana dashboard JSON file
       copy:
@@ -90,7 +135,9 @@
         dest: /var/lib/grafana/dashboards/birdapi-dashboard.json
         mode: '0644'
       when: not dashboard_json_file.stat.exists
+      when: node_role == "worker"
 
+    # Helm releases for Prometheus and Grafana
     - name: Install Prometheus Operator with Helm (via NodePort)
       shell: |
         helm upgrade --install prometheus-operator prometheus-community/kube-prometheus-stack \
@@ -99,6 +146,7 @@
         --wait
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+      when: node_role == "worker" and inventory_hostname == groups['worker'][0]  # First worker runs the Helm task
 
     - name: Install Grafana with Helm (NodePort 30002 and provisioned dashboards)
       shell: |
@@ -119,11 +167,14 @@
         --wait
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+      when: node_role == "worker" and inventory_hostname == groups['worker'][0]  # First worker handles Grafana deployment
 
     - name: Wait for Grafana pod to be ready
       shell: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana  --timeout=120s
       changed_when: false
+      when: node_role == "worker" and inventory_hostname == groups['worker'][0]
 
+    # Deploying birdImage and birdAPI Helm charts
     - name: Deploy birdImage API using Helm
       shell: |
         helm upgrade --install birdimageapi /home/ubuntu/devops-challenge/helm-charts/birdImage/ \
@@ -131,6 +182,7 @@
         --namespace default
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+      when: node_role == "worker" and inventory_hostname == groups['worker'][0]
 
     - name: Deploy bird API using Helm
       shell: |
@@ -140,53 +192,4 @@
         --set birdImageApiReleaseName=birdimageapi
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-
-    - name: Disable root login via SSH
-      lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^PermitRootLogin'
-        line: 'PermitRootLogin no'
-
-    - name: Ensure SSH uses key-based authentication only
-      lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^PasswordAuthentication'
-        line: 'PasswordAuthentication no'
-
-    - name: Restart SSH service to apply changes
-      systemd:
-        name: ssh
-        state: restarted
-
-    - name: Allow SSH traffic
-      ufw:
-        rule: allow
-        port: "22"
-        proto: tcp
-
-    - name: Allow NodePort 30001 for bird API
-      ufw:
-        rule: allow
-        port: "30001"
-        proto: tcp
-
-    - name: Allow NodePort 30002 for Grafana
-      ufw:
-        rule: allow
-        port: "30002"
-        proto: tcp
-    
-    - name: Allow NodePort 30003 for Prometheus
-      ufw:
-        rule: allow
-        port: "30003"
-        proto: tcp
-
-    - name: Enable UFW to apply all rules
-      ufw:
-        state: enabled
-
-    - name: Install unattended-upgrades
-      apt:
-        name: unattended-upgrades
-        state: present
+      when: node_role == "worker" and inventory_hostname == groups['worker'][0]
