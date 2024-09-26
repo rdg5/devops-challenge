@@ -2,8 +2,10 @@
 - hosts: localhost
   become: yes
   vars:
-    ssh_private_key: "/home/ubuntu/.ssh/new-ec2-key"  # Path to the SSH key available on all nodes
+    ssh_private_key: "/home/ubuntu/.ssh/new-ec2-key"  # Ensure the SSH key path is available on all nodes
+    ansible_user: "ubuntu"  # Use the correct user
 
+  # Pre-tasks to install boto3 before any SSM lookups
   pre_tasks:
     - name: Install pip3 if not installed
       apt:
@@ -16,6 +18,20 @@
         name: boto3
         state: present
         executable: pip3
+
+    # Allow a short pause to ensure boto3 installation is complete
+    - name: Wait for boto3 installation to complete
+      pause:
+        seconds: 10
+
+    # Fetch K3s master IP and token from SSM after boto3 is available
+    - name: Fetch K3s master IP from SSM
+      set_fact:
+        k3s_master_ip: "{{ lookup('aws_ssm', 'k3s-master-ip', region='eu-west-1') }}"
+
+    - name: Fetch K3s node token from SSM
+      set_fact:
+        k3s_node_token: "{{ lookup('aws_ssm', 'k3s-node-token', region='eu-west-1') }}"
 
   tasks:
     - name: Install Docker
@@ -30,13 +46,13 @@
         enabled: yes
         state: started
 
-    # Retrieve instance metadata, including tags
+    # Retrieve EC2 instance metadata, including tags
     - name: Get EC2 instance info
       ec2_instance_info:
         region: "eu-west-1"
       register: instance_info
 
-    # Ensure fallback if Role tag is missing
+    # Set the node_role based on EC2 tags or default to master if not found
     - name: Set node_role from EC2 instance tags or default to master
       set_fact:
         node_role: "{{ item.value if item.key == 'Role' else 'master' }}"
@@ -47,42 +63,33 @@
       debug:
         msg: "Node role is {{ node_role }}"
 
-    # Install K3s on Master
+    # Install k3s on Master node
     - name: Install k3s on Master
       shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644 --disable-agent
       when: node_role == "master"
 
-    # Wait for SSM to propagate token
-    - name: Wait for SSM to propagate token
-      pause:
-        seconds: 30
+    # Fetch K3s kubeconfig from the master node using SSH
+    - name: Fetch K3s kubeconfig from master
+      fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /tmp/k3s.yaml
+        flat: yes
+      delegate_to: "{{ k3s_master_ip }}"
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -i {{ ssh_private_key }}'
+      when: node_role == "master"
 
-    # Fetch K3s master IP from SSM
-    - name: Get K3s master IP from SSM
-      set_fact:
-        k3s_master_ip: "{{ lookup('aws_ssm', 'k3s-master-ip', region='eu-west-1') }}"
+    # Copy the kubeconfig from the master to worker nodes (with remote_src)
+    - name: Copy K3s kubeconfig to worker nodes
+      copy:
+        src: /tmp/k3s.yaml
+        dest: /etc/rancher/k3s/k3s.yaml
+        owner: ubuntu
+        mode: '0644'
+        remote_src: yes  # Ensure this is a remote file
+      when: node_role == "worker"
 
-    # Debug fetched K3s master IP
-    - name: Debug K3s master IP
-      debug:
-        msg: "K3s master IP is {{ k3s_master_ip }}"
-
-    # Fetch K3s node token from SSM
-    - name: Get K3s node token from SSM
-      set_fact:
-        k3s_node_token: "{{ lookup('aws_ssm', 'k3s-node-token', region='eu-west-1') }}"
-
-    # Debug fetched K3s node token
-    - name: Debug K3s node token
-      debug:
-        msg: "K3s node token is {{ k3s_node_token }}"
-
-    - name: Fail if K3s node token is not set
-      fail:
-        msg: "K3s node token is invalid, cannot proceed"
-      when: k3s_node_token == "-" or k3s_node_token == ""
-
-    # Install K3s on Worker and wait for master to be ready
+    # Wait for K3s master to be ready on worker nodes
     - name: Wait for K3s master to be ready
       wait_for:
         host: "{{ k3s_master_ip }}"
@@ -91,6 +98,7 @@
         timeout: 300
       when: node_role == "worker"
 
+    # Install k3s on Worker node, pointing to the master
     - name: Install k3s on Worker
       shell: |
         MASTER_IP={{ k3s_master_ip }}
@@ -98,7 +106,7 @@
         curl -sfL https://get.k3s.io | K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$NODE_TOKEN sh -
       when: node_role == "worker"
 
-    # Install Helm on worker nodes
+    # Install Helm on worker nodes with retries
     - name: Install Helm (with retries)
       shell: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
       retries: 5
@@ -107,38 +115,20 @@
       until: helm_install_result.rc == 0
       when: node_role == "worker"
 
-    # Fetch K3s kubeconfig from master to localhost, then copy to workers
-    - name: Fetch K3s kubeconfig from master
-      ansible.builtin.fetch:
-        src: /etc/rancher/k3s/k3s.yaml
-        dest: /tmp/k3s.yaml
-        flat: yes
-        validate_checksum: no  # Disable checksum validation
-      delegate_to: "{{ k3s_master_ip }}"
-      when: node_role == "master"
-      vars:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    # Log Helm installation success
+    - name: Log Helm installation result
+      debug:
+        msg: "Helm installation completed successfully on worker node {{ inventory_hostname }}"
 
-    # Copy K3s kubeconfig from localhost to worker nodes
-    - name: Copy K3s kubeconfig to worker nodes
-      copy:
-        src: /tmp/k3s.yaml
-        dest: /etc/rancher/k3s/k3s.yaml
-        owner: ubuntu
-        mode: '0644'
-      when: node_role == "worker"
-
-    # Wait for K3s control plane to be ready
-    - name: Wait for K3s control plane to be ready on worker nodes
+    # Add Helm repos for Prometheus and Grafana
+    - name: Add Helm repos for Prometheus and Grafana
       shell: |
-        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get nodes
-      register: k3s_status
-      retries: 10
-      delay: 15
-      until: k3s_status.rc == 0
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo update
       when: node_role == "worker"
 
-    # Helm releases for Prometheus and Grafana
+    # Helm deployment of Prometheus and Grafana
     - name: Install Prometheus Operator with Helm (via NodePort)
       shell: |
         helm upgrade --install prometheus-operator prometheus-community/kube-prometheus-stack \
@@ -146,47 +136,37 @@
         --set prometheus.service.nodePort=30003 \
         --wait
       environment:
-        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       when: node_role == "worker"
 
-    - name: Install Grafana with Helm (NodePort 30002 and provisioned dashboards)
+    - name: Install Grafana with Helm
       shell: |
         helm upgrade --install grafana grafana/grafana \
         --set adminPassword='your-admin-password' \
         --set service.type=NodePort \
         --set service.nodePort=30002 \
-        --set extraVolumes[0].name=grafana-provisioning \
-        --set extraVolumes[0].hostPath.path=/etc/grafana/provisioning \
-        --set extraVolumes[0].hostPath.type=Directory \
-        --set extraVolumes[1].name=grafana-dashboard-vol \
-        --set extraVolumes[1].hostPath.path=/var/lib/grafana/dashboards \
-        --set extraVolumes[1].hostPath.type=Directory \
-        --set extraVolumeMounts[0].name=grafana-provisioning \
-        --set extraVolumeMounts[0].mountPath=/etc/grafana/provisioning \
-        --set extraVolumeMounts[1].name=grafana-dashboard-vol \
-        --set extraVolumeMounts[1].mountPath=/var/lib/grafana/dashboards \
         --wait
       environment:
-        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       when: node_role == "worker"
 
+    # Wait for Grafana pod to be ready
     - name: Wait for Grafana pod to be ready
-      shell: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana  --timeout=120s
+      shell: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana --timeout=120s
       changed_when: false
-      when:
-        - node_role == "worker"
-        - inventory_hostname == groups['worker'][0]
+      when: node_role == "worker"
 
-    # Deploying birdImage and birdAPI Helm charts
+    # Deploy the birdImage API using Helm
     - name: Deploy birdImage API using Helm
       shell: |
         helm upgrade --install birdimageapi /home/ubuntu/devops-challenge/helm-charts/birdImage/ \
         -f /home/ubuntu/devops-challenge/helm-charts/birdImage/values-amd64.yaml \
         --namespace default
       environment:
-        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       when: node_role == "worker"
 
+    # Deploy the bird API using Helm
     - name: Deploy bird API using Helm
       shell: |
         helm upgrade --install birdapi /home/ubuntu/devops-challenge/helm-charts/bird/ \
@@ -194,5 +174,5 @@
         --namespace default \
         --set birdImageApiReleaseName=birdimageapi
       environment:
-        KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       when: node_role == "worker"
