@@ -14,11 +14,24 @@
         enabled: yes
         state: started
 
-    - name: Get instance tag (node_role)
-      ec2_metadata_facts:
-    - set_fact:
-        node_role: "{{ ansible_ec2_tag_Role }}"
-    
+    # Use ec2_instance_facts to retrieve instance metadata, including tags
+    - name: Get EC2 instance facts
+      ec2_instance_facts:
+        region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
+      register: instance_facts
+
+    # Ensure we have a fallback if the Role tag is missing
+    - name: Set node_role from EC2 instance tags or default to master
+      set_fact:
+        node_role: "{{ item.value if item.key == 'Role' else 'master' }}"
+      loop: "{{ instance_facts.instances[0].tags | dict2items }}"
+      when: instance_facts.instances[0].tags is defined
+
+    # Debug to confirm the correct node_role is being set
+    - name: Debug node role
+      debug:
+        msg: "Node role is {{ node_role }}"
+
     # Install k3s on Master
     - name: Install k3s on Master
       shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644 --disable-agent
