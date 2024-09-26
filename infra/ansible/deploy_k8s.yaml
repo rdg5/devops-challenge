@@ -1,7 +1,8 @@
 ---
 - hosts: localhost
   become: yes
-  aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') | default('eu-west-1') }}"  # Set region, with fallback
+  vars:
+    aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') | default('eu-west-1') }}"  # Set region, with fallback
   pre_tasks:
     - name: Install pip3 if not installed
       apt:
