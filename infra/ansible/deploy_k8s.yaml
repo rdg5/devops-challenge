@@ -1,6 +1,10 @@
 ---
 - hosts: localhost
   become: yes
+  vars:
+    ssh_private_key: "/home/ubuntu/.ssh/new-ec2-key"  # Path to the SSH key available on all nodes
+    master_ip: "{{ lookup('aws_ssm', 'k3s-master-ip', region='eu-west-1') }}"  # Fetching master IP from SSM
+
   pre_tasks:
     - name: Install pip3 if not installed
       apt:
@@ -27,38 +31,39 @@
         enabled: yes
         state: started
 
-    # Use ec2_instance_facts to retrieve instance metadata, including tags
+    # Retrieve instance metadata, including tags
     - name: Get EC2 instance info
       ec2_instance_info:
         region: "eu-west-1"
       register: instance_info
 
-    # Ensure we have a fallback if the Role tag is missing
+    # Ensure fallback if Role tag is missing
     - name: Set node_role from EC2 instance tags or default to master
       set_fact:
         node_role: "{{ item.value if item.key == 'Role' else 'master' }}"
       loop: "{{ instance_info.instances[0].tags | dict2items }}"
       when: instance_info.instances[0].tags is defined
 
-    # Debug to confirm the correct node_role is being set
     - name: Debug node role
       debug:
         msg: "Node role is {{ node_role }}"
 
-    # Install k3s on Master
+    # Install K3s on Master
     - name: Install k3s on Master
       shell: curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644 --disable-agent
       when: node_role == "master"
 
+    # Wait for SSM to propagate token
     - name: Wait for SSM to propagate token
       pause:
-        seconds: 30  # Adjust this value as needed
+        seconds: 30
 
+    # Fetch K3s master IP from SSM
     - name: Get K3s master IP from SSM
       set_fact:
         k3s_master_ip: "{{ lookup('aws_ssm', 'k3s-master-ip', region='eu-west-1') }}"
 
-    # Debug: Output the fetched K3s master IP
+    # Debug fetched K3s master IP
     - name: Debug K3s master IP
       debug:
         msg: "K3s master IP is {{ k3s_master_ip }}"
@@ -68,7 +73,7 @@
       set_fact:
         k3s_node_token: "{{ lookup('aws_ssm', 'k3s-node-token', region='eu-west-1') }}"
 
-    # Debug: Output the fetched K3s node token
+    # Debug fetched K3s node token
     - name: Debug K3s node token
       debug:
         msg: "K3s node token is {{ k3s_node_token }}"
@@ -78,7 +83,7 @@
         msg: "K3s node token is invalid, cannot proceed"
       when: k3s_node_token == "-" or k3s_node_token == ""
 
-    # Install k3s on Worker and wait for master to be ready
+    # Install K3s on Worker and wait for master to be ready
     - name: Wait for K3s master to be ready
       wait_for:
         host: "{{ k3s_master_ip }}"
@@ -103,106 +108,17 @@
       until: helm_install_result.rc == 0
       when: node_role == "worker"
 
-    - name: Log Helm installation result
-      debug:
-        msg: "Helm installation completed successfully on worker node {{ inventory_hostname }}"
-
-    - name: Add Helm repos for Prometheus and Grafana
-      shell: |
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo add grafana https://grafana.github.io/helm-charts
-        helm repo update
-      when:
-        - node_role == "worker"
-
-    - name: Check if repository is already cloned
-      stat:
-        path: /home/ubuntu/devops-challenge
-      register: repo_cloned
-      when: node_role == "worker"
-
-    - name: Clone repository
-      git:
-        repo: https://github.com/rdg5/devops-challenge.git
-        dest: /home/ubuntu/devops-challenge
-      when:
-        - node_role == "worker"
-        - not repo_cloned.stat.exists
-
-    # Grafana provisioning and configuration on the worker nodes
-    - name: Ensure /etc/grafana/provisioning/datasources directory exists
-      file:
-        path: /etc/grafana/provisioning/datasources
-        state: directory
-        mode: '0755'
-      when: node_role == "worker"
-
-    - name: Ensure /etc/grafana/provisioning/dashboards directory exists
-      file:
-        path: /etc/grafana/provisioning/dashboards
-        state: directory
-        mode: '0755'
-      when: node_role == "worker"
-
-    - name: Ensure /var/lib/grafana/dashboards directory exists
-      file:
-        path: /var/lib/grafana/dashboards
-        state: directory
-        mode: '0755'
-      when: node_role == "worker"
-
-    - name: Check if Grafana datasource file exists
-      stat:
-        path: /etc/grafana/provisioning/datasources/datasource.yml
-      register: datasource_file
-      when: node_role == "worker"
-
-    - name: Copy Grafana datasource provisioning file
-      copy:
-        src: /home/ubuntu/devops-challenge/infra/ansible/grafana/provisioning/datasources/datasource.yml
-        dest: /etc/grafana/provisioning/datasources/datasource.yml
-        mode: '0644'
-      when:
-        - node_role == "worker"
-        - not datasource_file.stat.exists
-
-    - name: Check if Grafana dashboard provisioning file exists
-      stat:
-        path: /etc/grafana/provisioning/dashboards/dashboard.yml
-      register: dashboard_provisioning_file
-      when: node_role == "worker"
-
-    - name: Copy Grafana dashboard provisioning file
-      copy:
-        src: /home/ubuntu/devops-challenge/infra/ansible/grafana/provisioning/dashboards/dashboard.yml
-        dest: /etc/grafana/provisioning/dashboards/dashboard.yml
-        mode: '0644'
-      when:
-        - node_role == "worker"
-        - not dashboard_provisioning_file.stat.exists
-
-    - name: Check if Grafana dashboard JSON file exists
-      stat:
-        path: /var/lib/grafana/dashboards/birdapi-dashboard.json
-      register: dashboard_json_file
-      when: node_role == "worker"
-
-    - name: Copy Grafana dashboard JSON file
-      copy:
-        src: /home/ubuntu/devops-challenge/infra/ansible/grafana/provisioning/dashboards/birdapi-dashboard.json
-        dest: /var/lib/grafana/dashboards/birdapi-dashboard.json
-        mode: '0644'
-      when:
-        - node_role == "worker"
-        - not dashboard_json_file.stat.exists
-
+    # Fetch K3s kubeconfig from master to localhost, then copy to workers
     - name: Fetch K3s kubeconfig from master
-      fetch:
+      ansible.builtin.fetch:
         src: /etc/rancher/k3s/k3s.yaml
         dest: /tmp/k3s.yaml
+        flat: yes
+        validate_checksum: no  # Disable checksum validation
+      delegate_to: "{{ k3s_master_ip }}"
       when: node_role == "master"
 
-# On worker nodes: Copy kubeconfig from master to worker nodes
+    # Copy K3s kubeconfig from localhost to worker nodes
     - name: Copy K3s kubeconfig to worker nodes
       copy:
         src: /tmp/k3s.yaml
@@ -211,7 +127,7 @@
         mode: '0644'
       when: node_role == "worker"
 
-# Wait for K3s control plane to be ready
+    # Wait for K3s control plane to be ready
     - name: Wait for K3s control plane to be ready on worker nodes
       shell: |
         kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get nodes
