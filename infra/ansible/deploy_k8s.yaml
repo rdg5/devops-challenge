@@ -117,6 +117,8 @@
         validate_checksum: no  # Disable checksum validation
       delegate_to: "{{ k3s_master_ip }}"
       when: node_role == "master"
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
     # Copy K3s kubeconfig from localhost to worker nodes
     - name: Copy K3s kubeconfig to worker nodes
