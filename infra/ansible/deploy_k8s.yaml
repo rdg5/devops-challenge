@@ -73,6 +73,11 @@
       debug:
         msg: "K3s node token is {{ k3s_node_token }}"
 
+    - name: Fail if K3s node token is not set
+      fail:
+        msg: "K3s node token is invalid, cannot proceed"
+      when: k3s_node_token == "-" or k3s_node_token == ""
+
     # Install k3s on Worker and wait for master to be ready
     - name: Wait for K3s master to be ready
       wait_for:
@@ -109,7 +114,6 @@
         helm repo update
       when:
         - node_role == "worker"
-        - inventory_hostname == groups['worker'][0]  # Only first worker handles this
 
     - name: Check if repository is already cloned
       stat:
@@ -201,9 +205,7 @@
         --wait
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-      when:
-        - node_role == "worker"
-        - inventory_hostname == groups['worker'][0]  # First worker runs the Helm task
+      when: node_role == "worker"
 
     - name: Install Grafana with Helm (NodePort 30002 and provisioned dashboards)
       shell: |
@@ -224,9 +226,7 @@
         --wait
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-      when:
-        - node_role == "worker"
-        - inventory_hostname == groups['worker'][0]  # First worker handles Grafana deployment
+      when: node_role == "worker"
 
     - name: Wait for Grafana pod to be ready
       shell: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana  --timeout=120s
@@ -243,9 +243,7 @@
         --namespace default
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-      when:
-        - node_role == "worker"
-        - inventory_hostname == groups['worker'][0]
+      when: node_role == "worker"
 
     - name: Deploy bird API using Helm
       shell: |
@@ -255,6 +253,4 @@
         --set birdImageApiReleaseName=birdimageapi
       environment:
         KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
-      when:
-        - node_role == "worker"
-        - inventory_hostname == groups['worker'][0]
+      when: node_role == "worker"
