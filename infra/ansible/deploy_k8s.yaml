@@ -69,11 +69,6 @@
       debug:
         msg: "K3s node token is {{ k3s_node_token }}"
 
-    - name: Fail if K3s node token is not set
-      fail:
-        msg: "K3s node token is invalid, cannot proceed"
-      when: k3s_node_token == "-" or k3s_node_token == ""
-
     # Install k3s on Worker and wait for master to be ready
     - name: Wait for K3s master to be ready
       wait_for:
