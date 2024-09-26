@@ -18,14 +18,14 @@
     - name: Get EC2 instance facts
       ec2_instance_facts:
         region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
-      register: instance_facts
+      register: instance_info
 
     # Ensure we have a fallback if the Role tag is missing
     - name: Set node_role from EC2 instance tags or default to master
       set_fact:
         node_role: "{{ item.value if item.key == 'Role' else 'master' }}"
-      loop: "{{ instance_facts.instances[0].tags | dict2items }}"
-      when: instance_facts.instances[0].tags is defined
+      loop: "{{ instance_info.instances[0].tags | dict2items }}"
+      when: instance_info.instances[0].tags is defined
 
     # Debug to confirm the correct node_role is being set
     - name: Debug node role
