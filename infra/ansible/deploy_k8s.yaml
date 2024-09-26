@@ -3,7 +3,6 @@
   become: yes
   vars:
     ssh_private_key: "/home/ubuntu/.ssh/new-ec2-key"  # Path to the SSH key available on all nodes
-    master_ip: "{{ lookup('aws_ssm', 'k3s-master-ip', region='eu-west-1') }}"  # Fetching master IP from SSM
 
   pre_tasks:
     - name: Install pip3 if not installed
