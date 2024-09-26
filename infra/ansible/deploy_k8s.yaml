@@ -1,8 +1,6 @@
 ---
 - hosts: localhost
   become: yes
-  vars:
-    aws_region: "{{ lookup('env', 'AWS_DEFAULT_REGION') | default('eu-west-1') }}"  # Set region, with fallback
   pre_tasks:
     - name: Install pip3 if not installed
       apt:
@@ -15,6 +13,11 @@
         name: boto3
         state: present
         executable: pip3
+        
+    - name: Set AWS region environment variable
+      shell: "export AWS_DEFAULT_REGION=eu-west-1"
+      args:
+        executable: /bin/bash
   tasks:
     - name: Install Docker
       apt:
