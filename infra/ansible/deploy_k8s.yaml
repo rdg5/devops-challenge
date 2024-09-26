@@ -76,18 +76,25 @@
         state: started
         timeout: 300
       when: node_role == "worker"
+    
+    # On the worker nodes, fetch the K3s kubeconfig from the master and copy it to the worker nodes
 
-    - name: Copy K3s kubeconfig to worker nodes
-      copy:
+    - name: Fetch K3s kubeconfig from master to local
+      fetch:
         src: /etc/rancher/k3s/k3s.yaml
+        dest: /tmp/k3s.yaml
+        flat: yes
+      delegate_to: "{{ k3s_master_ip }}"
+      when: node_role == "master"
+
+    - name: Copy K3s kubeconfig from local to worker nodes
+      copy:
+        src: /tmp/k3s.yaml
         dest: /etc/rancher/k3s/k3s.yaml
         owner: ubuntu
         mode: '0644'
-        remote_src: yes
-      delegate_to: "{{ k3s_master_ip }}"
       when: node_role == "worker"
-      connection: ssh
-      ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
 
 
     # Install k3s on Worker node, pointing to the master
