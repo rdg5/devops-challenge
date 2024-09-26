@@ -13,11 +13,7 @@
         name: boto3
         state: present
         executable: pip3
-        
-    - name: Set AWS region environment variable
-      shell: "export AWS_DEFAULT_REGION=eu-west-1"
-      args:
-        executable: /bin/bash
+
   tasks:
     - name: Install Docker
       apt:
@@ -34,7 +30,7 @@
     # Use ec2_instance_facts to retrieve instance metadata, including tags
     - name: Get EC2 instance info
       ec2_instance_info:
-        region: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
+        region: "eu-west-1"
       register: instance_info
 
     # Ensure we have a fallback if the Role tag is missing
