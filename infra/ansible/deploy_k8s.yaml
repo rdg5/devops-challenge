@@ -196,6 +196,31 @@
         - node_role == "worker"
         - not dashboard_json_file.stat.exists
 
+    - name: Fetch K3s kubeconfig from master
+      fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /tmp/k3s.yaml
+      when: node_role == "master"
+
+# On worker nodes: Copy kubeconfig from master to worker nodes
+    - name: Copy K3s kubeconfig to worker nodes
+      copy:
+        src: /tmp/k3s.yaml
+        dest: /etc/rancher/k3s/k3s.yaml
+        owner: ubuntu
+        mode: '0644'
+      when: node_role == "worker"
+
+# Wait for K3s control plane to be ready
+    - name: Wait for K3s control plane to be ready on worker nodes
+      shell: |
+        kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get nodes
+      register: k3s_status
+      retries: 10
+      delay: 15
+      until: k3s_status.rc == 0
+      when: node_role == "worker"
+
     # Helm releases for Prometheus and Grafana
     - name: Install Prometheus Operator with Helm (via NodePort)
       shell: |
