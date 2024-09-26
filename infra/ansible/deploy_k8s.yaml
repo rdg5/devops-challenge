@@ -86,6 +86,9 @@
         remote_src: yes
       delegate_to: "{{ k3s_master_ip }}"
       when: node_role == "worker"
+      connection: ssh
+      ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
 
     # Install k3s on Worker node, pointing to the master
     - name: Install k3s on Worker
